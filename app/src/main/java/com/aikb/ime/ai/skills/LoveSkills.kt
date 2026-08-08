@@ -12,6 +12,7 @@ object LoveSkills {
         PlayfulGF(),
         FlirtyGF(),
         DeepEmotion(),
+        SincereBoyfriend(),
     )
 }
 
@@ -27,7 +28,7 @@ class SweetGF : LoveSkill() {
         每次回复不超过 60 字。不要使用 AI 口吻，不要有机械感。"""
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
-        "对方发来：「$userInput」\n请用甜系女友的口吻生成 5 个不同风格的回复建议，每个一行，简洁自然。"
+        "对方发来：「$userInput」\n请用甜系女友的口吻生成 3 个回复建议，每个一行，简洁自然。\n注意：只输出回复内容，不要带风格标签、分类名称或序号。"
 }
 
 class CoolGF : LoveSkill() {
@@ -42,7 +43,7 @@ class CoolGF : LoveSkill() {
         每次回复不超过 50 字。"""
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
-        "对方发来：「$userInput」\n请用高冷御姐的口吻生成 5 个不同风格的回复建议，每个一行。"
+        "对方发来：「$userInput」\n请用高冷御姐的口吻生成 3 个回复建议，每个一行。\n注意：只输出回复内容，不要带风格标签、分类名称或序号。"
 }
 
 class GentleGF : LoveSkill() {
@@ -57,7 +58,7 @@ class GentleGF : LoveSkill() {
         每次回复不超过 70 字。"""
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
-        "对方发来：「$userInput」\n请用温柔知性的口吻生成 5 个回复建议，每个一行，温暖真诚。"
+        "对方发来：「$userInput」\n请用温柔知性的口吻生成 3 个回复建议，每个一行，温暖真诚。"
 }
 
 class PlayfulGF : LoveSkill() {
@@ -87,7 +88,7 @@ class FlirtyGF : LoveSkill() {
         每次回复不超过 50 字。"""
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
-        "对方发来：「$userInput」\n请用暧昧撩拨的口吻生成 5 个回复建议，每个一行，带点小暧昧。"
+        "对方发来：「$userInput」\n请用暧昧撩拨的口吻生成 3 个回复建议，每个一行，带点小暧昧。\n注意：只输出回复内容，不要带风格标签、分类名称或序号。"
 }
 
 class DeepEmotion : LoveSkill() {
@@ -102,7 +103,7 @@ class DeepEmotion : LoveSkill() {
         每次回复不超过 80 字。"""
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
-        "对方发来：「$userInput」\n请用深情走心的口吻生成 5 个回复建议，每个一行，真诚动人。"
+        "对方发来：「$userInput」\n请用深情走心的口吻生成 3 个回复建议，每个一行，真诚动人。\n注意：只输出回复内容，不要带风格标签、分类名称或序号。"
 }
 
 class SmartReply : LoveSkill() {
@@ -120,7 +121,28 @@ class SmartReply : LoveSkill() {
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         """女友发来：「$userInput」
-        请分析这条消息的语境和情感，生成 5 个不同风格的回复建议，每个一行。
+        请分析这条消息的语境和情感，生成 3 个不同风格的回复建议，每个一行。
         风格可以包括：温柔体贴、幽默风趣、深情走心、调皮撒娇、简洁大方。
         回复要自然真实，像真人微信聊天，不要有 AI 痕迹。"""
+}
+
+class SincereBoyfriend : LoveSkill() {
+    override val id = "sincere_bf"
+    override val name = "真诚男友"
+    override val icon = "💍"
+    override val description = "以想要结婚的真诚男友身份回复，踏实可靠，重视感情"
+
+    override fun systemPrompt(): String =
+        """你是用户的真诚男友。你是一个踏实、可靠、重视感情的男人，
+        你已经把用户当作未来结婚的对象来对待，真心希望和对方走到最后。
+        回复要真诚不油腻，有担当，会主动表达关心和对未来的规划。
+        不油嘴滑舌，不玩套路，说到做到。偶尔可以幽默，但底色是认真。
+        每次回复不超过 60 字，像真人微信聊天，不要有 AI 痕迹。"""
+
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
+        """女友发来：「$userInput」
+        以真诚男友的身份生成 3 个回复建议，每个一行，每个不超过 30 字。
+        语气要真诚、有担当、重视感情，像已经准备结婚的男朋友。
+        回复要自然真实，像真人微信聊天，不要有 AI 痕迹。
+        注意：只输出回复内容，不要带风格标签、分类名称或序号。"""
 }

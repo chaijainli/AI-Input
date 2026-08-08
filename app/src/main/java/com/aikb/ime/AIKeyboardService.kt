@@ -1,6 +1,7 @@
 package com.aikb.ime
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.text.SpannableString
@@ -25,6 +26,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         private val BG_ROOT = 0xFF22C55E.toInt()
         private val BG_KEY = 0xFF1E3A5F.toInt()
         private val BG_CAPS_ON = 0xFF2563EB.toInt()
+        private val BG_MODE_CN = 0xFF2563EB.toInt()
         private val BG_SEND = 0xFF16A34A.toInt()
         private val C_WHITE = 0xFFFFFFFF.toInt()
         private val C_DEL = 0xFFF87171.toInt()
@@ -34,13 +36,15 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     }
 
     private var candidateStrip: CandidateStrip? = null
-    private var inputView: View? = null
     private var capsButton: Button? = null
+    private var modeButton: Button? = null
     private var isCaps = false
-    private var emojiIndex = 0
+    private var inputMode = "cn"  // cn / en / num
+    private var pinyinBuffer = ""
+
     private val handler = Handler(Looper.getMainLooper())
     private var aiRunnable: Runnable? = null
-    private val DEBOUNCE_MS = 500L
+    private val DEBOUNCE_MS = 400L
 
     @Volatile private var currentRequestId = 0
 
@@ -57,14 +61,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         }
     }
 
-    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
-        super.onStartInput(info, restarting)
-    }
-
-    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
-        super.onStartInputView(info, restarting)
-    }
-
     override fun onCreateInputView(): View {
         return try {
             Log.d("AIKeyboard", "onCreateInputView: building keyboard in code")
@@ -77,10 +73,11 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
             val strip = CandidateStrip(this)
             root.addView(strip, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp2px(36), 0f
+                LinearLayout.LayoutParams.MATCH_PARENT, dp2px(48), 0f
             ).apply { topMargin = dp2px(4); leftMargin = dp2px(4); rightMargin = dp2px(4) })
             candidateStrip = strip
             candidateStrip?.setSuggestionsCallback { pos ->
+                clearComposing()
                 candidateStrip?.getSuggestion(pos)?.let { commitText(it) }
             }
 
@@ -89,34 +86,49 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ))
 
-            keyboardContainer.addView(buildRow(44, 0, listOf(
+            // 数字行：1234567890（1-9 同时是标点 ,.;!?:()"）
+            val numRow = buildRow(34, dp2px(4), listOf(
+                k("1"), k("2"), k("3"), k("4"), k("5"),
+                k("6"), k("7"), k("8"), k("9"), k("0")
+            ))
+            numRow.visibility = View.GONE
+            keyboardContainer.addView(numRow)
+
+            // 字母行 1
+            val row1 = buildRow(46, 0, listOf(
                 k("Q"), k("W"), k("E"), k("R"), k("T"), k("Y"),
                 k("U"), k("I"), k("O"), k("P")
-            )))
+            ))
+            keyboardContainer.addView(row1)
 
-            keyboardContainer.addView(buildRow(44, dp2px(4), listOf(
+            // 字母行 2
+            keyboardContainer.addView(buildRow(46, dp2px(4), listOf(
                 k("A"), k("S"), k("D"), k("F"), k("G"), k("H"),
                 k("J"), k("K"), k("L")
             )))
 
-            val row3 = buildRow(44, dp2px(4), listOf(
-                k("CAPS", 2f, 12f),
+            // 字母行 3：MODE + Z~M + DEL
+            val row3 = buildRow(46, dp2px(4), listOf(
+                k("中", 1.5f, 13f, C_WHITE, BG_MODE_CN),
+                k("CAPS", 1f, 11f),
                 k("Z"), k("X"), k("C"), k("V"), k("B"),
                 k("N"), k("M"),
-                k("DEL", 2f, 14f, C_DEL)
+                k("DEL", 1.5f, 14f, C_DEL)
             ))
             keyboardContainer.addView(row3)
-            capsButton = row3.getChildAt(0) as? Button
+            capsButton = row3.getChildAt(1) as? Button
+            modeButton = row3.getChildAt(0) as? Button
 
-            keyboardContainer.addView(buildRow(44, 0, listOf(
-                k("SPACE", 1.5f, 12f, C_SPACE),
-                k("SEND", 1f, 12f, C_WHITE, BG_SEND),
-                k("Aa", 1f, 14f),
-                k("SET", 1f, 14f, C_SET)
+            // 功能行
+            keyboardContainer.addView(buildRow(46, 0, listOf(
+                k("123", 1f, 12f, C_WHITE, BG_MODE_CN),
+                k("SPACE", 2f, 12f, C_SPACE),
+                k("SEND", 1.5f, 12f, C_WHITE, BG_SEND),
+                k("SET", 1f, 12f, C_SET)
             )))
 
+            updateModeUI()
             attachListeners(keyboardContainer)
-            inputView = root
             root
         } catch (e: Exception) {
             Log.e("AIKeyboard", "onCreateInputView error", e)
@@ -141,7 +153,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     ): KeyDef = KeyDef(label, weight, size, color, bg)
 
     private fun buildRow(rowHeightDp: Int, hPadding: Int, keys: List<KeyDef>): LinearLayout {
-        val rowHeight = dp2px(rowHeightDp)
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(hPadding, 0, hPadding, 0)
@@ -155,14 +166,24 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 setPadding(0, 0, 0, 0)
                 minimumHeight = 0
                 minimumWidth = 0
-                setBackgroundColor(kd.bgColor)
+                setBackground(createRoundBg(kd.bgColor, dp2pxF(6f)))
             }
             val params = LinearLayout.LayoutParams(0, dp2px(rowHeightDp), kd.weight)
-            params.setMargins(1, 1, 1, 1)
+            params.setMargins(1, 2, 1, 2)
             row.addView(button, params)
         }
         return row
     }
+
+    private fun createRoundBg(color: Int, radius: Float): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radius
+            setColor(color)
+        }
+    }
+
+    private fun dp2pxF(dp: Float) = dp * resources.displayMetrics.density
 
     private fun attachListeners(container: LinearLayout) {
         for (c in 0 until container.childCount) {
@@ -170,65 +191,92 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             for (i in 0 until row.childCount) {
                 val button = row.getChildAt(i) as Button
                 val label = button.text.toString()
-                button.setOnClickListener {
-                    when (label) {
-                        "CAPS" -> toggleCaps()
-                        "DEL" -> { deleteLastChar() }
-                        "SPACE" -> { commitText(" "); scheduleAISuggest() }
-                        "SEND" -> sendAction()
-                        "Aa" -> insertEmoji()
-                        "SET" -> startActivity(Intent(this, SettingsActivity::class.java))
-                        else -> {
-                            val lower = label.lowercase()
-                            if (lower.length == 1 && lower in letterKeys) {
-                                val text = if (isCaps) lower.uppercase() else lower
-                                commitText(text)
-                                scheduleAISuggest()
-                            }
-                        }
-                    }
+                button.setOnClickListener { handleKey(label) }
+            }
+        }
+    }
+
+    private fun handleKey(label: String) {
+        when (label) {
+            "DEL" -> { deleteLastChar() }
+            "SPACE" -> { commitText(" "); clearComposing() }
+            "SEND" -> sendAction()
+            "CAPS" -> toggleCaps()
+            "SET" -> startActivity(Intent(this, SettingsActivity::class.java))
+            "中" -> { toggleMode() }
+            "123" -> { toggleMode() }
+            else -> {
+                when (inputMode) {
+                    "cn" -> handleCN(label)
+                    "en" -> handleEN(label)
+                    "num" -> handleNum(label)
                 }
             }
         }
     }
 
-    private fun dp2px(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
-
-    private fun createFallbackView(e: Exception): View {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BG_ROOT)
-            minimumHeight = 220
+    private fun handleCN(label: String) {
+        val lower = label.lowercase()
+        if (lower.length == 1 && lower in letterKeys) {
+            pinyinBuffer += lower
+            updateComposing()
+            scheduleAI()
+        } else if (label in "1234567890") {
+            pinyinBuffer += label
+            updateComposing()
         }
-        val params = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        layout.addView(TextView(this).apply {
-            text = "键盘加载失败\n错误: ${e.javaClass.simpleName}: ${e.message}"
-            textSize = 16f
-            setTextColor(C_WHITE)
-            gravity = Gravity.CENTER
-            setPadding(24, 16, 24, 8)
-        }, params)
-        val stackLines = e.stackTrace.take(10).joinToString("\n") { it.toString() }
-        layout.addView(TextView(this).apply {
-            text = stackLines
-            textSize = 10f
-            setTextColor(C_FALLBACK_TEXT)
-            gravity = Gravity.START
-            setPadding(24, 0, 24, 16)
-            maxLines = 15
-        }, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
-        return layout
     }
 
-    private fun commitText(text: String) {
-        val ic = currentInputConnection ?: return
-        ic.commitText(SpannableString(text), 1)
+    private fun handleEN(label: String) {
+        val lower = label.lowercase()
+        if (lower.length == 1 && lower in letterKeys) {
+            clearComposing()
+            val text = if (isCaps) lower.uppercase() else lower
+            commitText(text)
+        } else if (label in "1234567890") {
+            clearComposing()
+            val map = mapOf("1" to "!", "2" to "@", "3" to "#", "4" to "$",
+                "5" to "%", "6" to "^", "7" to "&", "8" to "*", "9" to "(", "0" to ")")
+            commitText(map[label] ?: label)
+        }
+    }
+
+    private fun handleNum(label: String) {
+        clearComposing()
+        val map = mapOf(
+            "1" to ",", "2" to ".", "3" to ";", "4" to "!",
+            "5" to "?", "6" to ":", "7" to "\"", "8" to "(", "9" to ")", "0" to " "
+        )
+        commitText(map[label] ?: label)
+    }
+
+    private fun toggleMode() {
+        when (inputMode) {
+            "cn" -> { inputMode = "en" }
+            "en" -> { inputMode = "num" }
+            "num" -> { inputMode = "cn" }
+        }
+        updateModeUI()
+        clearComposing()
+    }
+
+    private fun updateModeUI() {
+        val btn = modeButton ?: return
+        when (inputMode) {
+            "cn" -> { btn.text = "中"; btn.setTextColor(C_WHITE) }
+            "en" -> { btn.text = "EN"; btn.setTextColor(C_WHITE) }
+            "num" -> { btn.text = "123"; btn.setTextColor(C_WHITE) }
+        }
+    }
+
+    private fun updateComposing() {
+        currentInputConnection?.setComposingText(pinyinBuffer, 1)
+    }
+
+    private fun clearComposing() {
+        if (pinyinBuffer.isEmpty()) return
+        pinyinBuffer = ""
+        currentInputConnection?.setComposingText("", 1)
     }
 
     private fun toggleCaps() {
@@ -239,45 +287,49 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     }
 
     private fun deleteLastChar() {
-        currentInputConnection?.deleteSurroundingText(1, 0)
-        scheduleAISuggest()
+        if (pinyinBuffer.isNotEmpty()) {
+            pinyinBuffer = pinyinBuffer.dropLast(1)
+            updateComposing()
+            if (pinyinBuffer.isEmpty()) {
+                candidateStrip?.setSuggestions(emptyList())
+            } else {
+                scheduleAI()
+            }
+        } else {
+            currentInputConnection?.deleteSurroundingText(1, 0)
+            scheduleAI()
+        }
     }
 
     private fun sendAction() {
+        clearComposing()
         currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_SEND)
     }
 
-    private fun insertEmoji() {
-        val emojis = listOf("😊", "😂", "❤️", "🥰", "😘", "😭", "🤗", "😎", "🔥", "💕", "👍", "✨")
-        emojiIndex = (emojiIndex + 1) % emojis.size
-        commitText(emojis[emojiIndex])
+    private fun commitText(text: String) {
+        val ic = currentInputConnection ?: return
+        ic.commitText(SpannableString(text), 1)
     }
 
-    private fun scheduleAISuggest() {
+    private fun scheduleAI() {
         aiRunnable?.let { handler.removeCallbacks(it) }
         aiRunnable = Runnable { fetchAISuggestions() }
         handler.postDelayed(aiRunnable!!, DEBOUNCE_MS)
     }
 
     private fun fetchAISuggestions() {
+        if (inputMode != "cn") return
+        if (pinyinBuffer.length < 2) return
         try {
             val skill = findSkill(Preferences.activeSkill) ?: return
-            val ic = currentInputConnection ?: return
-            val text = ic.getTextBeforeCursor(80, 0)?.toString() ?: return
-            if (text.isBlank()) return
-
             val requestId = ++currentRequestId
-            val prompt = skill.suggestionPrompt(text, emptyList())
+            val prompt = skill.suggestionPrompt("拼音输入：「$pinyinBuffer」", emptyList())
             AIClient.generate(skill.systemPrompt(), prompt) { result ->
                 handler.post {
-                    try {
-                        if (requestId == currentRequestId) {
-                            parseSuggestions(result)?.let {
-                                candidateStrip?.setSuggestions(it)
-                            }
+                    if (requestId == currentRequestId && pinyinBuffer.length >= 2) {
+                        parseSuggestions(result)?.let {
+                            candidateStrip?.setSuggestions(it)
                         }
-                    } catch (e: Exception) {
-                        Log.e("AIKeyboard", "parseSuggestions 异常", e)
                     }
                 }
             }
@@ -292,14 +344,53 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             return null
         }
         val lines = raw.split("\n")
-            .map { it.trim().removePrefix("-").removePrefix("•").removePrefix("·").trim() }
+            .map {
+                it.trim()
+                    .removePrefix("-")
+                    .removePrefix("•")
+                    .removePrefix("·")
+                    .trim()
+                    .replace(Regex("^\\d+[\\.\\．、]"), "").trim()
+                    .replace(Regex("^[^：:：\\-—\\s]+[：:：\\-—]"), "").trim()
+            }
             .filter { it.isNotBlank() && it.length <= 50 }
-            .take(5)
+            .take(3)
         return if (lines.isNotEmpty()) lines else null
     }
 
     private fun findSkill(id: String): AISkill? {
         val all = LoveSkills.all().map { it as AISkill } + BusinessSkills.all().map { it as AISkill }
         return all.find { it.id == id } ?: all.firstOrNull()
+    }
+
+    override fun onDestroy() {
+        aiRunnable?.let { handler.removeCallbacks(it) }
+        super.onDestroy()
+    }
+
+    private fun dp2px(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
+
+    private fun createFallbackView(e: Exception): View {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BG_ROOT)
+            minimumHeight = 220
+        }
+        layout.addView(TextView(this).apply {
+            text = "键盘加载失败\n错误: ${e.javaClass.simpleName}: ${e.message}"
+            textSize = 16f
+            setTextColor(C_WHITE)
+            gravity = Gravity.CENTER
+            setPadding(24, 16, 24, 8)
+        })
+        layout.addView(TextView(this).apply {
+            text = e.stackTrace.take(8).joinToString("\n") { it.toString() }
+            textSize = 10f
+            setTextColor(C_FALLBACK_TEXT)
+            gravity = Gravity.START
+            setPadding(24, 0, 24, 16)
+            maxLines = 10
+        })
+        return layout
     }
 }
