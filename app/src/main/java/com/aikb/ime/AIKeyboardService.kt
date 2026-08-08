@@ -57,7 +57,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     override fun onCreateInputView(): View {
         return try {
             Log.d("AIKeyboard", "onCreateInputView: inflating keyboard_view")
-            val view = layoutInflater.inflate(R.layout.keyboard_view, null)
+            val view = layoutInflater.inflate(R.layout.keyboard_view, null, false)
             inputView = view
 
             val stripView = view.findViewById<View>(R.id.candidate_strip)
