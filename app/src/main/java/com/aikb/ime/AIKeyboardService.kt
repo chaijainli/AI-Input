@@ -63,7 +63,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             val stripView = view.findViewById<View>(R.id.candidate_strip)
             candidateStrip = stripView as? CandidateStrip
             if (candidateStrip == null) {
-                throw ClassCastException("candidate_strip 不是 CandidateStrip 类型，实际: ${stripView?.javaClass.name}")
+                throw ClassCastException("candidate_strip 不是 CandidateStrip 类型，实际: ${stripView?.javaClass?.name}")
             }
             candidateStrip?.setSuggestionsCallback { pos ->
                 candidateStrip?.getSuggestion(pos)?.let { commitText(it) }

@@ -17,6 +17,9 @@ object Preferences {
         context = ctx.applicationContext
     }
 
+    // 供 AIClient 网络检测使用
+    fun getContext(): Context? = context
+
     private fun prefs(): SharedPreferences =
         context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             ?: throw IllegalStateException("Preferences not initialized. Call Preferences.init() first.")
@@ -38,8 +41,8 @@ object Preferences {
         set(v) { prefs().edit().putString(KEY_ACTIVE_SKILL, v).apply() }
 
     // 预置模型列表，依次尝试
-    val modelCandidates: List<String> = listOf(MODEL_PRIMARY, MODEL_FALLBACK)
-    const val DEFAULT_URL = "https://token.sensenova.cn/v1"
     const val MODEL_PRIMARY = "deepseek-v4-flash"
     const val MODEL_FALLBACK = "sensenova-6.7-flash-lite"
+    const val DEFAULT_URL = "https://token.sensenova.cn/v1"
+    val modelCandidates: List<String> = listOf(MODEL_PRIMARY, MODEL_FALLBACK)
 }

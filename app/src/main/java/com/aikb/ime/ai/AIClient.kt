@@ -42,8 +42,8 @@ object AIClient {
 
     private fun isNetworkAvailable(): Boolean {
         try {
-            val cm = (Preferences.context?.getSystemService(Context.CONNECTIVITY_SERVICE)
-                as ConnectivityManager)
+            val ctx = Preferences.getContext()
+            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val net = cm.activeNetwork ?: return false
             val cap = cm.getNetworkCapabilities(net) ?: return false
             return cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
