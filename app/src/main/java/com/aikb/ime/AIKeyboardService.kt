@@ -239,9 +239,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             updateComposing()
             scheduleSuggestions()
         } else if (label in "1234567890") {
-            pinyinBuffer += label
-            updateComposing()
-            scheduleSuggestions()
+            // 中文模式下数字直接输出，不进拼音缓冲区
+            clearComposing()
+            commitText(label)
         }
     }
 
