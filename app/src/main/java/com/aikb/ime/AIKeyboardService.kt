@@ -4,11 +4,14 @@ import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.text.SpannableString
 import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.PopupWindow
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -24,30 +27,60 @@ import com.aikb.ime.util.Preferences
 class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     companion object {
-        private val BG_ROOT = 0xFF22C55E.toInt()
-        private val BG_KEY = 0xFF1E3A5F.toInt()
-        private val BG_CAPS_ON = 0xFF2563EB.toInt()
-        private val BG_MODE_CN = 0xFF2563EB.toInt()
-        private val BG_SEND = 0xFF16A34A.toInt()
-        private val BG_AI_KEY = 0xFF0D6EFD.toInt()
+        private val BG_ROOT = 0xFF2D333B.toInt()
+        private val BG_KEY = 0xFF4A5568.toInt()
+        private val BG_CAPS_ON = 0xFF4299E1.toInt()
+        private val BG_MODE_CN = 0xFF4299E1.toInt()
+        private val BG_SEND = 0xFF38A169.toInt()
+        private val BG_AI_KEY = 0xFF4C51BF.toInt()
         private val C_WHITE = 0xFFFFFFFF.toInt()
-        private val C_DEL = 0xFFF87171.toInt()
+        private val C_DEL = 0xFFE53E3E.toInt()
         private val C_SPACE = 0xFF94A3B8.toInt()
-        private val C_SET = 0xFFFBBF24.toInt()
+        private val C_SET = 0xFFD69E2E.toInt()
         private val C_FALLBACK_TEXT = 0xFF000000.toInt()
+        private val BG_POPUP = 0xFF3D4654.toInt()
+        private val SENTENCE_ENDINGS = setOf(".", "。", "!", "！", "?", "？")
+        private val NUM_LONG_PRESS = mapOf(
+            "1" to listOf("1", "!"),
+            "2" to listOf("2", "@", "¥", "€"),
+            "3" to listOf("3", "#"),
+            "4" to listOf("4", "$", "£"),
+            "5" to listOf("5", "%"),
+            "6" to listOf("6", "^", "~"),
+            "7" to listOf("7", "&"),
+            "8" to listOf("8", "*"),
+            "9" to listOf("9", "(", "[", "{"),
+            "0" to listOf("0", ")", "]", "}")
+        )
     }
 
     private var localStrip: CandidateStrip? = null
     private var aiStrip: CandidateStrip? = null
     private var capsButton: Button? = null
     private var modeButton: Button? = null
+    private var actionButton: Button? = null
+    private var modeButtonInFuncRow: Button? = null
+    private var currentSendAction = 0
+    private var lastEditorInfo: EditorInfo? = null
     private var isCaps = false
     private var inputMode = "cn"  // cn / en / num
     private var pinyinBuffer = ""
+    private var sentenceCaps = false
+
+    private val vibrator: Vibrator by lazy {
+        getSystemService(VIBRATOR_SERVICE) as Vibrator
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private var aiRunnable: Runnable? = null
     private val DEBOUNCE_MS = 300L
+
+    private var delRunnable: Runnable? = null
+    private var isDelHolding = false
+    private var numPopup: PopupWindow? = null
+
+    private val DEL_INITIAL_DELAY = 400L
+    private val DEL_REPEAT_INTERVAL = 80L
 
     @Volatile private var currentRequestId = 0
 
@@ -88,7 +121,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 }
             }
 
-            val aiStripView = CandidateStrip(this, 0xFF0D6EFD.toInt(), 0xFF1E3A5F.toInt())
+            val aiStripView = CandidateStrip(this, BG_AI_KEY, BG_KEY, true)
             root.addView(aiStripView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp2px(40), 0f
             ).apply { topMargin = dp2px(2); leftMargin = dp2px(4); rightMargin = dp2px(4) })
@@ -127,22 +160,25 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             // 字母行 3：MODE + Z~M + DEL
             val row3 = buildRow(46, dp2px(4), listOf(
                 k("中", 1.5f, 13f, C_WHITE, BG_MODE_CN),
-                k("CAPS", 1f, 11f),
+                k("⇪", 1f, 13f),
                 k("Z"), k("X"), k("C"), k("V"), k("B"),
                 k("N"), k("M"),
-                k("DEL", 1.5f, 14f, C_DEL)
+                k("⌫", 1.5f, 14f, C_DEL)
             ))
             keyboardContainer.addView(row3)
             capsButton = row3.getChildAt(1) as? Button
             modeButton = row3.getChildAt(0) as? Button
 
             // 功能行
-            keyboardContainer.addView(buildRow(46, 0, listOf(
+            val actionRow = buildRow(46, 0, listOf(
                 k("123", 1f, 12f, C_WHITE, BG_MODE_CN),
-                k("SPACE", 2f, 12f, C_SPACE),
-                k("SEND", 1.5f, 12f, C_WHITE, BG_SEND),
-                k("SET", 1f, 12f, C_SET)
-            )))
+                k("空格", 2f, 12f, C_SPACE),
+                k("发送", 1.5f, 12f, C_WHITE, BG_SEND),
+                k("设置", 1f, 12f, C_SET)
+            ))
+            keyboardContainer.addView(actionRow)
+            actionButton = actionRow.getChildAt(2) as? Button
+            modeButtonInFuncRow = actionRow.getChildAt(0) as? Button
 
             updateModeUI()
             attachListeners(keyboardContainer)
@@ -150,6 +186,27 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         } catch (e: Exception) {
             Log.e("AIKeyboard", "onCreateInputView error", e)
             createFallbackView(e)
+        }
+    }
+
+    override fun onStartInput(editorInfo: EditorInfo, restarting: Boolean) {
+        super.onStartInput(editorInfo, restarting)
+        lastEditorInfo = editorInfo
+        updateActionButton()
+    }
+
+    private fun updateActionButton() {
+        val btn = actionButton ?: return
+        val info = lastEditorInfo ?: return
+        val action = info.imeAction
+        currentSendAction = action
+        btn.text = when (action) {
+            EditorInfo.IME_ACTION_SEND -> "发送"
+            EditorInfo.IME_ACTION_NEXT, EditorInfo.IME_ACTION_DONE -> "确定"
+            EditorInfo.IME_ACTION_SEARCH -> "搜索"
+            EditorInfo.IME_ACTION_GO -> "前往"
+            EditorInfo.IME_ACTION_UNSPECIFIED, 0 -> "换行"
+            else -> "换行"
         }
     }
 
@@ -184,6 +241,19 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 minimumHeight = 0
                 minimumWidth = 0
                 setBackground(createRoundBg(kd.bgColor, dp2pxF(6f)))
+                setOnTouchListener { _, event ->
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            alpha = 0.6f
+                            vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                        android.view.MotionEvent.ACTION_UP,
+                        android.view.MotionEvent.ACTION_CANCEL -> {
+                            alpha = 1.0f
+                        }
+                    }
+                    false
+                }
             }
             val params = LinearLayout.LayoutParams(0, dp2px(rowHeightDp), kd.weight)
             params.setMargins(1, 2, 1, 2)
@@ -209,19 +279,91 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 val button = row.getChildAt(i) as Button
                 val label = button.text.toString()
                 button.setOnClickListener { handleKey(label) }
+                if (label == "⌫") {
+                    val delBtn = button
+                    delRunnable = Runnable {
+                        if (isDelHolding && (pinyinBuffer.isNotEmpty() || currentInputConnection != null)) {
+                            deleteLastChar()
+                            handler.postDelayed(this@AIKeyboardService.delRunnable!!, DEL_REPEAT_INTERVAL)
+                        }
+                    }
+                    delBtn.setOnLongClickListener {
+                        isDelHolding = true
+                        deleteLastChar()
+                        handler.postDelayed(delRunnable!!, DEL_INITIAL_DELAY)
+                        true
+                    }
+                    delBtn.setOnTouchListener { _, event ->
+                        when (event.action) {
+                            android.view.MotionEvent.ACTION_UP,
+                            android.view.MotionEvent.ACTION_CANCEL -> {
+                                isDelHolding = false
+                                stopDelRepeat()
+                            }
+                        }
+                        false
+                    }
+                } else if (label in "1234567890") {
+                    val numBtn = button
+                    numBtn.setOnLongClickListener {
+                        showNumLongPressPopup(numBtn, label)
+                        true
+                    }
+                    numBtn.setOnClickListener { if (numPopup == null) handleKey(label) }
+                }
             }
         }
     }
 
+    private fun showNumLongPressPopup(anchor: Button, digit: String) {
+        val choices = NUM_LONG_PRESS[digit] ?: return
+        val popupContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(BG_POPUP)
+            setPadding(dp2px(4), dp2px(4), dp2px(4), dp2px(4))
+            setVisibility(View.VISIBLE)
+        }
+        for (ch in choices) {
+            popupContainer.addView(Button(this).apply {
+                text = ch
+                textSize = 18f
+                setTextColor(C_WHITE)
+                gravity = Gravity.CENTER
+                minimumHeight = 0
+                minimumWidth = 0
+                setPadding(dp2px(12), dp2px(8), dp2px(12), dp2px(8))
+                onClick {
+                    commitText(ch)
+                    dismissPopups()
+                }
+            })
+        }
+        val window = PopupWindow(popupContainer, dp2px(240), dp2px(48), true)
+        window.isOutsideTouchable = true
+        window.setElevation(dp2px(8).toFloat())
+        window.showAsDropDown(anchor)
+        numPopup = window
+        popupContainer.visibility = View.VISIBLE
+    }
+
+    private fun dismissPopups() {
+        numPopup?.dismiss()
+        numPopup = null
+    }
+
+    private fun stopDelRepeat() {
+        delRunnable?.let { handler.removeCallbacks(it) }
+        delRunnable = null
+    }
+
     private fun handleKey(label: String) {
-        when (label) {
-            "DEL" -> { deleteLastChar() }
-            "SPACE" -> { commitText(" "); clearComposing() }
-            "SEND" -> sendAction()
-            "CAPS" -> toggleCaps()
-            "SET" -> startActivity(Intent(this, SettingsActivity::class.java))
-            "中" -> { toggleMode() }
-            "123" -> { toggleMode() }
+        when {
+            label == "⌫" -> deleteLastChar()
+            label == "空格" -> { commitText(" "); clearComposing() }
+            label in listOf("发送", "换行", "确定", "搜索", "前往") -> sendAction()
+            label == "⇪" -> toggleCaps()
+            label == "设置" -> startActivity(Intent(this, SettingsActivity::class.java))
+            label == "中" || label == "123" || label == "EN" -> toggleMode()
             else -> {
                 when (inputMode) {
                     "cn" -> handleCN(label)
@@ -249,7 +391,8 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         val lower = label.lowercase()
         if (lower.length == 1 && lower in letterKeys) {
             clearComposing()
-            val text = if (isCaps) lower.uppercase() else lower
+            val text = if (isCaps) lower.uppercase() else if (sentenceCaps) lower.uppercase() else lower
+            if (sentenceCaps) sentenceCaps = false
             commitText(text)
         } else if (label in "1234567890") {
             clearComposing()
@@ -280,11 +423,15 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun updateModeUI() {
         val btn = modeButton ?: return
-        when (inputMode) {
-            "cn" -> { btn.text = "中"; btn.setTextColor(C_WHITE) }
-            "en" -> { btn.text = "EN"; btn.setTextColor(C_WHITE) }
-            "num" -> { btn.text = "123"; btn.setTextColor(C_WHITE) }
+        val funcBtn = modeButtonInFuncRow
+        val text = when (inputMode) {
+            "en" -> "EN"
+            "num" -> "123"
+            else -> "中"
         }
+        btn.text = text
+        btn.setTextColor(C_WHITE)
+        funcBtn?.text = text
     }
 
     private fun updateComposing() {
@@ -299,8 +446,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun toggleCaps() {
         isCaps = !isCaps
+        sentenceCaps = false
         val btn = capsButton ?: return
-        btn.setBackgroundColor(if (isCaps) BG_CAPS_ON else BG_KEY)
+        btn.setBackground(createRoundBg(if (isCaps) BG_CAPS_ON else BG_KEY, dp2pxF(6f)))
         btn.setTextColor(C_WHITE)
     }
 
@@ -322,12 +470,28 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun sendAction() {
         clearComposing()
-        currentInputConnection?.performEditorAction(EditorInfo.IME_ACTION_SEND)
+        if (currentSendAction == EditorInfo.IME_ACTION_UNSPECIFIED) {
+            commitText("\n")
+        } else {
+            currentInputConnection?.performEditorAction(currentSendAction)
+        }
     }
 
     private fun commitText(text: String) {
+        if (SENTENCE_ENDINGS.any { text.contains(it) }) sentenceCaps = true
         val ic = currentInputConnection ?: return
-        ic.commitText(SpannableString(text), 1)
+        val output = if (inputMode == "cn") convertPunctuation(text) else text
+        ic.commitText(SpannableString(output), 1)
+    }
+
+    private fun convertPunctuation(text: String): String {
+        return text
+            .replace(".", "。")
+            .replace(",", "，")
+            .replace("!", "！")
+            .replace("?", "？")
+            .replace(";", "；")
+            .replace(":", "：")
     }
 
     private fun scheduleSuggestions() {
@@ -359,9 +523,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                     handler.post {
                         if (requestId == currentRequestId) {
                             val suggestions = parseSuggestions(result)
-                            if (suggestions != null) {
-                                aiStrip?.setSuggestions(suggestions)
-                            }
+                            aiStrip?.setSuggestions(suggestions ?: emptyList())
                         }
                     }
                 }
@@ -400,6 +562,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     override fun onDestroy() {
         aiRunnable?.let { handler.removeCallbacks(it) }
+        delRunnable?.let { handler.removeCallbacks(it) }
         super.onDestroy()
     }
 

@@ -19,6 +19,7 @@ class CandidateStrip : View {
     private var callback: ((Int) -> Unit)? = null
     private val paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.DEFAULT
+        textAlign = Paint.Align.CENTER
     }
 
     private var drawableBg0: GradientDrawable? = null
@@ -32,15 +33,19 @@ class CandidateStrip : View {
     private var firstTouchX = 0f
     private var firstTouchY = 0f
 
-    constructor(ctx: Context) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
-    constructor(ctx: Context, attrs: AttributeSet?) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
-    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
-    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
-    constructor(ctx: Context, primaryBg: Int, secondaryBg: Int) : super(ctx) {
+    constructor(ctx: Context) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt(), false)
+    constructor(ctx: Context, attrs: AttributeSet?) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt(), false)
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt(), false)
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt(), false)
+    constructor(ctx: Context, primaryBg: Int, secondaryBg: Int) : this(ctx, primaryBg, secondaryBg, false)
+    constructor(ctx: Context, primaryBg: Int, secondaryBg: Int, autoHide: Boolean) : super(ctx) {
         this.primaryBg = primaryBg
         this.secondaryBg = secondaryBg
+        this.autoHide = autoHide
         init()
     }
+
+    private var autoHide = false
 
     private var primaryBg: Int = 0xFF2563EB.toInt()
     private var secondaryBg: Int = 0xFF1E3A5F.toInt()
@@ -76,6 +81,9 @@ class CandidateStrip : View {
         pageNum = 0
         scrollOffset = 0f
         if (measuredWidth > 0) itemWidth = (measuredWidth - 2 * padding) / 3f
+        if (autoHide) {
+            visibility = if (suggestions.isEmpty()) View.GONE else View.VISIBLE
+        }
         postInvalidate()
     }
 

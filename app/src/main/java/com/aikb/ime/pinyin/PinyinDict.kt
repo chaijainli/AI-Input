@@ -513,14 +513,71 @@ object PinyinDict {
 
     fun init(context: android.content.Context) {
         prefs = context.getSharedPreferences("pinyin_freq", android.content.Context.MODE_PRIVATE)
+        loadFrequency(context)
     }
 
-    /** 根据拼音查询候选词 */
+    /** 根据拼音查询候选词（先精确匹配，再分词） */
     fun lookup(pinyin: String): List<String> {
-        val words = dict[pinyin.lowercase()] ?: emptyList()
-        if (words.isEmpty()) return emptyList()
-        // 按用户选择频率排序
-        return words.sortedByDescending { frequency[it] ?: 0 }
+        val lower = pinyin.lowercase()
+
+        // 1. 精确匹配
+        val exact = dict[lower] ?: emptyList()
+        if (exact.isNotEmpty()) {
+            return exact.filter { it.isNotBlank() }
+                .sortedByDescending { frequency[it] ?: 0 }
+                .take(5)
+        }
+
+        // 2. 多字拼音分词匹配
+        if (lower.length > 2) {
+            val segmented = segmentLookup(lower)
+            if (segmented.isNotEmpty()) return segmented
+        }
+
+        return emptyList()
+    }
+
+    /** 将长拼音分词后组合候选词 */
+    private fun segmentLookup(pinyin: String): List<String> {
+        val n = pinyin.length
+        if (n > 12) return emptyList()
+
+        // DP: dp[i] = 所有能覆盖 pinyin[0..i-1] 的分词路径
+        val dp = Array(n + 1) { mutableListOf<List<String>>() }
+        dp[0] = mutableListOf(emptyList())
+
+        for (i in 0 until n) {
+            if (dp[i].isEmpty()) continue
+            for (j in i + 2..min(i + 6, n)) {
+                val seg = pinyin.substring(i, j)
+                if (dict.containsKey(seg)) {
+                    for (path in dp[i]) {
+                        dp[j].add(path + seg)
+                        if (dp[j].size > 100) break
+                    }
+                    if (dp[j].size > 100) break
+                }
+            }
+        }
+
+        if (dp[n].isEmpty()) return emptyList()
+
+        // 每条分词路径取最高频候选组合
+        val results = mutableListOf<String>()
+        for (path in dp[n].take(20)) {
+            var candidate = ""
+            var valid = true
+            for (seg in path) {
+                val words = (dict[seg] ?: emptyList())
+                    .filter { it.isNotBlank() }
+                    .sortedByDescending { frequency[it] ?: 0 }
+                if (words.isEmpty()) { valid = false; break }
+                candidate += words[0]
+            }
+            if (valid && candidate.isNotBlank()) results.add(candidate)
+        }
+
+        return results.distinct().take(5)
     }
 
     /** 记录用户选择的词，提升下次排名 */
