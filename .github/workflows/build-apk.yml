@@ -23,7 +23,7 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 11076708
-          packages: platform-tools build-tools;34.0.0 android-34
+          packages: platform-tools build-tools;35.0.0
 
       - name: Make gradlew executable
         run: chmod +x gradlew
