@@ -6,6 +6,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+repositories {
+    google()
+    mavenCentral()
+}
+
 android {
     namespace = "com.aikb.ime"
     compileSdk = 34
