@@ -29,6 +29,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         private val BG_CAPS_ON = 0xFF2563EB.toInt()
         private val BG_MODE_CN = 0xFF2563EB.toInt()
         private val BG_SEND = 0xFF16A34A.toInt()
+        private val BG_AI_KEY = 0xFF0D6EFD.toInt()
         private val C_WHITE = 0xFFFFFFFF.toInt()
         private val C_DEL = 0xFFF87171.toInt()
         private val C_SPACE = 0xFF94A3B8.toInt()
@@ -36,7 +37,8 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         private val C_FALLBACK_TEXT = 0xFF000000.toInt()
     }
 
-    private var candidateStrip: CandidateStrip? = null
+    private var localStrip: CandidateStrip? = null
+    private var aiStrip: CandidateStrip? = null
     private var capsButton: Button? = null
     private var modeButton: Button? = null
     private var isCaps = false
@@ -45,7 +47,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var aiRunnable: Runnable? = null
-    private val DEBOUNCE_MS = 400L
+    private val DEBOUNCE_MS = 300L
 
     @Volatile private var currentRequestId = 0
 
@@ -77,13 +79,23 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             root.addView(strip, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp2px(48), 0f
             ).apply { topMargin = dp2px(4); leftMargin = dp2px(4); rightMargin = dp2px(4) })
-            candidateStrip = strip
-            candidateStrip?.setSuggestionsCallback { pos ->
+            localStrip = strip
+            localStrip?.setSuggestionsCallback { pos ->
                 clearComposing()
-                candidateStrip?.getSuggestion(pos)?.let { word ->
+                localStrip?.getSuggestion(pos)?.let { word ->
                     PinyinDict.recordSelection(word, pinyinBuffer)
                     commitText(word)
                 }
+            }
+
+            val aiStripView = CandidateStrip(this, 0xFF0D6EFD.toInt(), 0xFF1E3A5F.toInt())
+            root.addView(aiStripView, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp2px(40), 0f
+            ).apply { topMargin = dp2px(2); leftMargin = dp2px(4); rightMargin = dp2px(4) })
+            aiStrip = aiStripView
+            aiStrip?.setSuggestionsCallback { pos ->
+                clearComposing()
+                aiStrip?.getSuggestion(pos)?.let { word -> commitText(word) }
             }
 
             val keyboardContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -297,7 +309,8 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             pinyinBuffer = pinyinBuffer.dropLast(1)
             updateComposing()
             if (pinyinBuffer.isEmpty()) {
-                candidateStrip?.setSuggestions(emptyList())
+                localStrip?.setSuggestions(emptyList())
+                aiStrip?.setSuggestions(emptyList())
             } else {
                 scheduleSuggestions()
             }
@@ -329,26 +342,30 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         if (buffer.isEmpty()) return
 
         try {
-            // 优先用本地拼音词库
+            // 第1排：本地拼音词库（零延迟）
             val local = PinyinDict.lookup(buffer)
             if (local.isNotEmpty()) {
-                candidateStrip?.setSuggestions(local.take(3))
-                return
+                localStrip?.setSuggestions(local.take(3))
+            } else {
+                localStrip?.setSuggestions(emptyList())
             }
 
-            // 词库无匹配且长度 >= 2 才发 AI 请求
-            if (buffer.length < 2) return
-            val skill = findSkill(Preferences.activeSkill) ?: return
-            val requestId = ++currentRequestId
-            val prompt = skill.suggestionPrompt("拼音输入：「$buffer」", emptyList())
-            AIClient.generate(skill.systemPrompt(), prompt) { result ->
-                handler.post {
-                    if (requestId == currentRequestId) {
-                        parseSuggestions(result)?.let {
-                            candidateStrip?.setSuggestions(it)
+            // 第2排：AI 智能建议（并行，拼音 >= 2 字才发请求）
+            if (buffer.length >= 2) {
+                val skill = findSkill(Preferences.activeSkill) ?: return
+                val requestId = ++currentRequestId
+                val prompt = skill.suggestionPrompt("拼音输入：「$buffer」", emptyList())
+                AIClient.generate(skill.systemPrompt(), prompt) { result ->
+                    handler.post {
+                        if (requestId == currentRequestId) {
+                            parseSuggestions(result)?.let {
+                                aiStrip?.setSuggestions(it)
+                            }
                         }
                     }
                 }
+            } else {
+                aiStrip?.setSuggestions(emptyList())
             }
         } catch (e: Exception) {
             Log.e("AIKeyboard", "fetchSuggestions 异常", e)

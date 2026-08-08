@@ -24,10 +24,18 @@ class CandidateStrip : View {
     private var drawableBg0: GradientDrawable? = null
     private var drawableBg1: GradientDrawable? = null
 
-    constructor(ctx: Context) : super(ctx) { init() }
-    constructor(ctx: Context, attrs: AttributeSet?) : super(ctx, attrs) { init() }
-    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(ctx, attrs, defStyleAttr) { init() }
-    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : super(ctx, attrs, defStyleAttr, defStyleRes) { init() }
+    constructor(ctx: Context) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
+    constructor(ctx: Context, attrs: AttributeSet?) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
+    constructor(ctx: Context, primaryBg: Int, secondaryBg: Int) : super(ctx) {
+        this.primaryBg = primaryBg
+        this.secondaryBg = secondaryBg
+        init()
+    }
+
+    private var primaryBg: Int = 0xFF2563EB.toInt()
+    private var secondaryBg: Int = 0xFF1E3A5F.toInt()
 
     fun setSuggestionsCallback(cb: (Int) -> Unit) { callback = cb }
     fun getSuggestion(pos: Int): String? = items.getOrNull(pos)
@@ -45,12 +53,12 @@ class CandidateStrip : View {
         drawableBg0 = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = corner
-            setColor(Color.parseColor("#2563EB"))
+            setColor(primaryBg)
         }
         drawableBg1 = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = corner
-            setColor(Color.parseColor("#1E3A5F"))
+            setColor(secondaryBg)
         }
     }
 
