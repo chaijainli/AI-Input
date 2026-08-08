@@ -345,7 +345,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             // 第1排：本地拼音词库（零延迟）
             val local = PinyinDict.lookup(buffer)
             if (local.isNotEmpty()) {
-                localStrip?.setSuggestions(local.take(3))
+                localStrip?.setSuggestions(local)
             } else {
                 localStrip?.setSuggestions(emptyList())
             }
@@ -358,8 +358,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 AIClient.generate(skill.systemPrompt(), prompt) { result ->
                     handler.post {
                         if (requestId == currentRequestId) {
-                            parseSuggestions(result)?.let {
-                                aiStrip?.setSuggestions(it)
+                            val suggestions = parseSuggestions(result)
+                            if (suggestions != null) {
+                                aiStrip?.setSuggestions(suggestions)
                             }
                         }
                     }

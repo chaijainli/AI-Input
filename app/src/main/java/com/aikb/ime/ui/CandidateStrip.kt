@@ -24,6 +24,14 @@ class CandidateStrip : View {
     private var drawableBg0: GradientDrawable? = null
     private var drawableBg1: GradientDrawable? = null
 
+    private var pageNum = 0
+    private var scrollOffset = 0f
+    private var isSwiping = false
+    private var swipeStartX = 0f
+    private val SWIPE_THRESHOLD = 30f
+    private var firstTouchX = 0f
+    private var firstTouchY = 0f
+
     constructor(ctx: Context) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
     constructor(ctx: Context, attrs: AttributeSet?) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
     constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : this(ctx, 0xFF2563EB.toInt(), 0xFF1E3A5F.toInt())
@@ -65,6 +73,8 @@ class CandidateStrip : View {
     fun setSuggestions(suggestions: List<String>) {
         items.clear()
         items.addAll(suggestions)
+        pageNum = 0
+        scrollOffset = 0f
         if (measuredWidth > 0) itemWidth = (measuredWidth - 2 * padding) / 3f
         postInvalidate()
     }
@@ -84,25 +94,99 @@ class CandidateStrip : View {
         super.onDraw(canvas)
         val bg0 = drawableBg0 ?: return
         val bg1 = drawableBg1 ?: return
-        val visible = items.size.coerceAtMost(3)
-        for (i in 0 until visible) {
-            val x = padding + i * itemWidth
+        val totalItems = items.size
+        val baseX = padding + scrollOffset
+
+        for (i in 0 until 3) {
+            val itemIdx = pageNum * 3 + i
+            if (itemIdx >= totalItems) break
+            val x = baseX + i * itemWidth
             val bg = if (i == 0) bg0 else bg1
             bg.setBounds(x.toInt(), 0, (x + itemWidth).toInt(), itemHeight.toInt())
             bg.draw(canvas)
-            val text = items[i]
+            val text = items[itemIdx]
             val display = if (text.length > 20) text.take(18) + "..." else text
             paint.color = Color.WHITE
             val ty = itemHeight / 2f - (paint.descent() + paint.ascent()) / 2f
             canvas.drawText(display, x + itemWidth / 2f, ty, paint)
         }
+
+        if (scrollOffset < 0) {
+            val peekIdx = pageNum * 3 + 3
+            if (peekIdx < totalItems) {
+                val x = baseX + 3 * itemWidth
+                bg1.setBounds(x.toInt(), 0, (x + itemWidth).toInt(), itemHeight.toInt())
+                bg1.draw(canvas)
+                val text = items[peekIdx]
+                val display = if (text.length > 20) text.take(18) + "..." else text
+                paint.color = Color.WHITE
+                val ty = itemHeight / 2f - (paint.descent() + paint.ascent()) / 2f
+                canvas.drawText(display, x + itemWidth / 2f, ty, paint)
+            }
+        } else if (scrollOffset > 0) {
+            val peekIdx = pageNum * 3 - 1
+            if (peekIdx >= 0) {
+                val x = baseX - itemWidth
+                bg1.setBounds(x.toInt(), 0, (x + itemWidth).toInt(), itemHeight.toInt())
+                bg1.draw(canvas)
+                val text = items[peekIdx]
+                val display = if (text.length > 20) text.take(18) + "..." else text
+                paint.color = Color.WHITE
+                val ty = itemHeight / 2f - (paint.descent() + paint.ascent()) / 2f
+                canvas.drawText(display, x + itemWidth / 2f, ty, paint)
+            }
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (items.isEmpty()) return false
-        if (event.action == MotionEvent.ACTION_UP) {
-            val pos = ((event.x - padding) / itemWidth).toInt().coerceIn(0, items.size - 1)
-            callback?.invoke(pos)
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                swipeStartX = event.x
+                firstTouchX = event.x
+                firstTouchY = event.y
+                isSwiping = false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.x - swipeStartX
+                if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(event.y - firstTouchY)) {
+                    isSwiping = true
+                    scrollOffset = dx
+                    postInvalidate()
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (isSwiping) {
+                    val dx = event.x - swipeStartX
+                    if (dx < -SWIPE_THRESHOLD) {
+                        val maxPage = (items.size - 1) / 3
+                        if (pageNum < maxPage) {
+                            pageNum++
+                            scrollOffset = 0f
+                            postInvalidate()
+                            return true
+                        }
+                    } else if (dx > SWIPE_THRESHOLD) {
+                        if (pageNum > 0) {
+                            pageNum--
+                            scrollOffset = 0f
+                            postInvalidate()
+                            return true
+                        }
+                    }
+                    scrollOffset = 0f
+                    postInvalidate()
+                    return true
+                }
+                val x = firstTouchX - padding
+                val slot = x / itemWidth
+                if (slot >= 0 && slot < 3) {
+                    val itemIdx = pageNum * 3 + slot.toInt()
+                    if (itemIdx >= 0 && itemIdx < items.size) {
+                        callback?.invoke(itemIdx)
+                    }
+                }
+            }
         }
         return true
     }
