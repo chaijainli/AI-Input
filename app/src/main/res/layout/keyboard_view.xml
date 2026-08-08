@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:minHeight="220dp"
+    android:layout_height="240dp"
     android:orientation="vertical"
     android:background="#22C55E"
     android:paddingBottom="4dp">
@@ -10,7 +9,7 @@
     <com.aikb.ime.ui.CandidateStrip
         android:id="@+id/candidate_strip"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="36dp"
         android:layout_margin="4dp" />
 
     <LinearLayout
@@ -18,8 +17,8 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:orientation="horizontal" android:weightSum="10" android:paddingTop="2dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:weightSum="10">
             <Button android:id="@+id/key_q" style="@style/KeyStyle" android:layout_weight="1" android:text="Q" />
             <Button android:id="@+id/key_w" style="@style/KeyStyle" android:layout_weight="1" android:text="W" />
             <Button android:id="@+id/key_e" style="@style/KeyStyle" android:layout_weight="1" android:text="E" />
@@ -32,9 +31,9 @@
             <Button android:id="@+id/key_p" style="@style/KeyStyle" android:layout_weight="1" android:text="P" />
         </LinearLayout>
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:orientation="horizontal" android:weightSum="9" android:paddingTop="2dp"
-            android:paddingStart="5dp" android:paddingEnd="5dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:weightSum="9"
+            android:paddingStart="4dp" android:paddingEnd="4dp">
             <Button android:id="@+id/key_a" style="@style/KeyStyle" android:layout_weight="1" android:text="A" />
             <Button android:id="@+id/key_s" style="@style/KeyStyle" android:layout_weight="1" android:text="S" />
             <Button android:id="@+id/key_d" style="@style/KeyStyle" android:layout_weight="1" android:text="D" />
@@ -46,11 +45,11 @@
             <Button android:id="@+id/key_l" style="@style/KeyStyle" android:layout_weight="1" android:text="L" />
         </LinearLayout>
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:orientation="horizontal" android:weightSum="12" android:paddingTop="2dp"
-            android:paddingStart="5dp" android:paddingEnd="5dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:weightSum="12"
+            android:paddingStart="4dp" android:paddingEnd="4dp">
             <Button android:id="@+id/key_shift" style="@style/KeyStyle"
-                android:layout_weight="2" android:text="⇧" android:textSize="14sp" />
+                android:layout_weight="2" android:text="CAPS" android:textSize="12sp" />
             <Button android:id="@+id/key_z" style="@style/KeyStyle" android:layout_weight="1" android:text="Z" />
             <Button android:id="@+id/key_x" style="@style/KeyStyle" android:layout_weight="1" android:text="X" />
             <Button android:id="@+id/key_c" style="@style/KeyStyle" android:layout_weight="1" android:text="C" />
@@ -59,19 +58,19 @@
             <Button android:id="@+id/key_n" style="@style/KeyStyle" android:layout_weight="1" android:text="N" />
             <Button android:id="@+id/key_m" style="@style/KeyStyle" android:layout_weight="1" android:text="M" />
             <Button android:id="@+id/key_delete" style="@style/KeyStyle"
-                android:layout_weight="2" android:text="⌫" android:textColor="#F87171" />
+                android:layout_weight="2" android:text="DEL" android:textColor="#F87171" android:textSize="14sp" />
         </LinearLayout>
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp"
-            android:orientation="horizontal" android:weightSum="4.5" android:paddingTop="2dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+            android:orientation="horizontal" android:weightSum="4.5">
             <Button android:id="@+id/key_space" style="@style/KeyStyle"
-                android:layout_weight="1.5" android:text=" " android:textColor="#94A3B8" />
+                android:layout_weight="1.5" android:text="SPACE" android:textSize="12sp" android:textColor="#94A3B8" />
             <Button android:id="@+id/key_send" style="@style/KeyStyle"
-                android:layout_weight="1" android:text="发送" android:background="#22C55E" android:textColor="#FFFFFF" />
+                android:layout_weight="1" android:text="SEND" android:background="#16A34A" android:textColor="#FFFFFF" />
             <Button android:id="@+id/key_emoji" style="@style/KeyStyle"
-                android:layout_weight="1" android:text="😊" android:textSize="20sp" />
+                android:layout_weight="1" android:text="Aa" android:textSize="14sp" />
             <Button android:id="@+id/key_settings" style="@style/KeyStyle"
-                android:layout_weight="1" android:text="⚙" android:textSize="20sp" android:textColor="#FBBF24" />
+                android:layout_weight="1" android:text="SET" android:textSize="14sp" android:textColor="#FBBF24" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

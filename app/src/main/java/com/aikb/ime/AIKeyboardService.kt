@@ -20,8 +20,8 @@ import com.aikb.ime.util.Preferences
 
 class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
-    private lateinit var candidateStrip: CandidateStrip
-    private lateinit var inputView: View
+    private var candidateStrip: CandidateStrip? = null
+    private var inputView: View? = null
     private var isCaps = false
     private var emojiIndex = 0
     private val handler = Handler(Looper.getMainLooper())
@@ -62,9 +62,11 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
             val stripView = view.findViewById<View>(R.id.candidate_strip)
             candidateStrip = stripView as? CandidateStrip
-                ?: throw ClassCastException("candidate_strip 不是 CandidateStrip 类型，实际: ${stripView?.javaClass.name}")
-            candidateStrip.setSuggestionsCallback { pos ->
-                candidateStrip.getSuggestion(pos)?.let { commitText(it) }
+            if (candidateStrip == null) {
+                throw ClassCastException("candidate_strip 不是 CandidateStrip 类型，实际: ${stripView?.javaClass.name}")
+            }
+            candidateStrip?.setSuggestionsCallback { pos ->
+                candidateStrip?.getSuggestion(pos)?.let { commitText(it) }
             }
 
             letterKeys.forEach { key ->
@@ -132,12 +134,12 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun toggleCaps() {
         isCaps = !isCaps
-        val shiftBtn = inputView.findViewById<Button>(R.id.key_shift)
-        shiftBtn.isEnabled = true
+        val shiftBtn = inputView?.findViewById<Button>(R.id.key_shift)
+        shiftBtn?.isEnabled = true
         if (isCaps) {
-            shiftBtn.setBackgroundColor(0xFF2563EB.toInt())
+            shiftBtn?.setBackgroundColor(0xFF2563EB.toInt())
         } else {
-            shiftBtn.setBackgroundColor(0xFF1E293B.toInt())
+            shiftBtn?.setBackgroundColor(0xFF1E293B.toInt())
         }
     }
 
@@ -175,7 +177,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 handler.post {
                     try {
                         if (requestId == currentRequestId) {
-                            parseSuggestions(result)?.let { candidateStrip.setSuggestions(it) }
+                            parseSuggestions(result)?.let {
+                                candidateStrip?.setSuggestions(it)
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e("AIKeyboard", "parseSuggestions 异常", e)
@@ -188,7 +192,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     }
 
     private fun parseSuggestions(raw: String): List<String>? {
-        if (raw.startsWith("[") || raw.contains("网络错误") || raw.contains("API错误") || raw.contains("请先在设置")) {
+        if (raw.startsWith("[") || raw.contains("网络错误") || raw.contains("API错误") || raw.contains("模型不存在") || raw.contains("请先在设置")) {
             return null
         }
 
