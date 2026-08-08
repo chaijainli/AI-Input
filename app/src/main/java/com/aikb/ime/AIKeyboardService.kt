@@ -199,7 +199,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     private fun updateActionButton() {
         val btn = actionButton ?: return
         val info = lastEditorInfo ?: return
-        val action = info.imeAction
+        val action = info.actionId
         currentSendAction = action
         btn.text = when (action) {
             EditorInfo.IME_ACTION_SEND -> "发送"
