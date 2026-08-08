@@ -70,8 +70,8 @@ object AIClient {
         conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
         conn.setRequestProperty("Authorization", "Bearer $apiKey")
         conn.doOutput = true
-        conn.connectTimeout = 15000
-        conn.readTimeout = 30000
+        conn.connectTimeout = 8000
+        conn.readTimeout = 15000
 
         try {
             OutputStreamWriter(conn.outputStream, "UTF-8").use { it.write(body) }

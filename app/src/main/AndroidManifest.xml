@@ -17,6 +17,7 @@
         <service
             android:name=".AIKeyboardService"
             android:permission="android.permission.BIND_INPUT_METHOD"
+            android:label="@string/app_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
@@ -34,6 +35,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AI输入法" />
 
     </application>
 </manifest>
