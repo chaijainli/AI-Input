@@ -110,7 +110,7 @@ object AIClient {
             // 非 2xx 响应码 → 从 errorStream 读取错误详情
             if (responseCode != 200) {
                 try {
-                    val errReader = BufferedReader(InputStreamReader(conn.errorStream ?: InputStreamReader(conn.inputStream), "UTF-8"))
+                    val errReader = BufferedReader(InputStreamReader(conn.errorStream ?: conn.inputStream, "UTF-8"))
                     val errText = StringBuilder()
                     var line: String?
                     while (errReader.readLine().also { line = it } != null) errText.append(line)
