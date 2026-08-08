@@ -16,6 +16,7 @@ import com.aikb.ime.ai.AIClient
 import com.aikb.ime.ai.AISkill
 import com.aikb.ime.ai.skills.BusinessSkills
 import com.aikb.ime.ai.skills.LoveSkills
+import com.aikb.ime.pinyin.PinyinDict
 import com.aikb.ime.ui.CandidateStrip
 import com.aikb.ime.ui.SettingsActivity
 import com.aikb.ime.util.Preferences
@@ -56,8 +57,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         super.onCreate()
         try {
             Preferences.init(this)
+            PinyinDict.init(this)
         } catch (e: Exception) {
-            Log.e("AIKeyboard", "onCreate: Preferences.init 失败", e)
+            Log.e("AIKeyboard", "onCreate init 失败", e)
         }
     }
 
@@ -78,7 +80,10 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             candidateStrip = strip
             candidateStrip?.setSuggestionsCallback { pos ->
                 clearComposing()
-                candidateStrip?.getSuggestion(pos)?.let { commitText(it) }
+                candidateStrip?.getSuggestion(pos)?.let { word ->
+                    PinyinDict.recordSelection(word, pinyinBuffer)
+                    commitText(word)
+                }
             }
 
             val keyboardContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -220,10 +225,11 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         if (lower.length == 1 && lower in letterKeys) {
             pinyinBuffer += lower
             updateComposing()
-            scheduleAI()
+            scheduleSuggestions()
         } else if (label in "1234567890") {
             pinyinBuffer += label
             updateComposing()
+            scheduleSuggestions()
         }
     }
 
@@ -293,11 +299,11 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             if (pinyinBuffer.isEmpty()) {
                 candidateStrip?.setSuggestions(emptyList())
             } else {
-                scheduleAI()
+                scheduleSuggestions()
             }
         } else {
             currentInputConnection?.deleteSurroundingText(1, 0)
-            scheduleAI()
+            scheduleSuggestions()
         }
     }
 
@@ -311,22 +317,33 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         ic.commitText(SpannableString(text), 1)
     }
 
-    private fun scheduleAI() {
+    private fun scheduleSuggestions() {
         aiRunnable?.let { handler.removeCallbacks(it) }
-        aiRunnable = Runnable { fetchAISuggestions() }
+        aiRunnable = Runnable { fetchSuggestions() }
         handler.postDelayed(aiRunnable!!, DEBOUNCE_MS)
     }
 
-    private fun fetchAISuggestions() {
+    private fun fetchSuggestions() {
         if (inputMode != "cn") return
-        if (pinyinBuffer.length < 2) return
+        val buffer = pinyinBuffer
+        if (buffer.isEmpty()) return
+
         try {
+            // 优先用本地拼音词库
+            val local = PinyinDict.lookup(buffer)
+            if (local.isNotEmpty()) {
+                candidateStrip?.setSuggestions(local.take(3))
+                return
+            }
+
+            // 词库无匹配且长度 >= 2 才发 AI 请求
+            if (buffer.length < 2) return
             val skill = findSkill(Preferences.activeSkill) ?: return
             val requestId = ++currentRequestId
-            val prompt = skill.suggestionPrompt("拼音输入：「$pinyinBuffer」", emptyList())
+            val prompt = skill.suggestionPrompt("拼音输入：「$buffer」", emptyList())
             AIClient.generate(skill.systemPrompt(), prompt) { result ->
                 handler.post {
-                    if (requestId == currentRequestId && pinyinBuffer.length >= 2) {
+                    if (requestId == currentRequestId) {
                         parseSuggestions(result)?.let {
                             candidateStrip?.setSuggestions(it)
                         }
@@ -334,7 +351,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("AIKeyboard", "fetchAISuggestions 异常", e)
+            Log.e("AIKeyboard", "fetchSuggestions 异常", e)
         }
     }
 
