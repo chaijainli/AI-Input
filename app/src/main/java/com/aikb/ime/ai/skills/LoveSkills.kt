@@ -5,6 +5,7 @@ import com.aikb.ime.ai.LoveSkill
 object LoveSkills {
 
     fun all(): List<LoveSkill> = listOf(
+        SmartReply(),
         SweetGF(),
         CoolGF(),
         GentleGF(),
@@ -102,4 +103,24 @@ class DeepEmotion : LoveSkill() {
 
     override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用深情走心的口吻生成 5 个回复建议，每个一行，真诚动人。"
+}
+
+class SmartReply : LoveSkill() {
+    override val id = "smart_reply"
+    override val name = "智能回复女友消息"
+    override val icon = "🧠"
+    override val description = "综合语境智能判断，自动匹配最佳回复风格"
+
+    override fun systemPrompt(): String =
+        """你是用户的智能聊天助手，专门帮用户回复女友的消息。
+        请根据女友消息的语气、内容、情感色彩，自动判断最适合的回复风格。
+        可以温柔、可以幽默、可以深情、可以调皮，视情况而定。
+        回复要自然像真人，不要有 AI 感，不要说套话。
+        每个回复不超过 60 字。"""
+
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
+        """女友发来：「$userInput」
+        请分析这条消息的语境和情感，生成 5 个不同风格的回复建议，每个一行。
+        风格可以包括：温柔体贴、幽默风趣、深情走心、调皮撒娇、简洁大方。
+        回复要自然真实，像真人微信聊天，不要有 AI 痕迹。"""
 }

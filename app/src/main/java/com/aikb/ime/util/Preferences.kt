@@ -34,7 +34,7 @@ object Preferences {
         set(v) { prefs().edit().putString(KEY_MODEL, v).apply() }
 
     var activeSkill: String
-        get() = prefs().getString(KEY_ACTIVE_SKILL, "sweet_gf") ?: "sweet_gf"
+        get() = prefs().getString(KEY_ACTIVE_SKILL, "smart_reply") ?: "smart_reply"
         set(v) { prefs().edit().putString(KEY_ACTIVE_SKILL, v).apply() }
 
     const val DEFAULT_URL = "https://api.openai.com/v1"

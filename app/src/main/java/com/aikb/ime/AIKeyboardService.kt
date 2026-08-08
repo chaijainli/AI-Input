@@ -18,6 +18,7 @@ import com.aikb.ime.util.Preferences
 class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private lateinit var candidateStrip: CandidateStrip
+    private lateinit var inputView: View
     private var isCaps = false
     private var emojiIndex = 0
     private val handler = Handler(Looper.getMainLooper())
@@ -37,8 +38,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     override fun onCreateInputView(): View {
         val view = layoutInflater.inflate(R.layout.keyboard_view, null)
+        inputView = view
 
-        candidateStrip = view.findViewById(R.id.candidate_strip)
+        candidateStrip = view.findViewById(R.id.candidate_strip) as CandidateStrip
         candidateStrip.setSuggestionsCallback { pos ->
             candidateStrip.getSuggestion(pos)?.let { commitText(it) }
         }
@@ -71,12 +73,13 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun toggleCaps() {
         isCaps = !isCaps
-        val shiftBtn = currentInputView?.findViewById<Button>(R.id.key_shift) ?: return
+        val shiftBtn = inputView.findViewById<Button>(R.id.key_shift)
         shiftBtn.isEnabled = true
-        shiftBtn.backgroundTintList = if (isCaps) {
-            android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2563EB"))
+        if (isCaps) {
+            shiftBtn.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                android.graphics.Color.parseColor("#2563EB"))
         } else {
-            null
+            shiftBtn.backgroundTintList = null
         }
     }
 
