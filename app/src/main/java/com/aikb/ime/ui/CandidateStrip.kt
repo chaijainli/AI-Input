@@ -10,7 +10,6 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 
-/** AI 候选词栏 */
 class CandidateStrip : View {
 
     private val items = mutableListOf<String>()
@@ -56,7 +55,7 @@ class CandidateStrip : View {
             val x = padding + i * itemWidth
             GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp2px(8f).toInt()
+                cornerRadius = dp2px(8f)
                 setColor(Color.parseColor(if (i == 0) "#2563EB" else "#1E3A5F"))
                 setBounds(x.toInt(), 0, (x + itemWidth).toInt(), itemHeight.toInt())
                 draw(canvas)

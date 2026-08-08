@@ -2,7 +2,6 @@ package com.aikb.ime.ai.skills
 
 import com.aikb.ime.ai.LoveSkill
 
-/** 恋爱场景 Skill 注册表 */
 object LoveSkills {
 
     fun all(): List<LoveSkill> = listOf(
@@ -15,7 +14,6 @@ object LoveSkills {
     )
 }
 
-// ---- 1. 甜系女友 ----
 class SweetGF : LoveSkill() {
     override val id = "sweet_gf"
     override val name = "甜系女友"
@@ -27,11 +25,10 @@ class SweetGF : LoveSkill() {
         多用 emoji 🥰😘💕 表达情感。回复简短自然，像真人微信聊天。
         每次回复不超过 60 字。不要使用 AI 口吻，不要有机械感。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用甜系女友的口吻生成 5 个不同风格的回复建议，每个一行，简洁自然。"
 }
 
-// ---- 2. 高冷御姐 ----
 class CoolGF : LoveSkill() {
     override val id = "cool_gf"
     override val name = "高冷御姐"
@@ -43,11 +40,10 @@ class CoolGF : LoveSkill() {
         回复简短但有质感，偶尔带点傲娇。不舔不谄媚，像有主见的酷女孩。
         每次回复不超过 50 字。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用高冷御姐的口吻生成 5 个不同风格的回复建议，每个一行。"
 }
 
-// ---- 3. 温柔知性 ----
 class GentleGF : LoveSkill() {
     override val id = "gentle_gf"
     override val name = "温柔知性"
@@ -59,11 +55,10 @@ class GentleGF : LoveSkill() {
         内容真诚温暖，让人感到被理解和支持。像温柔的女友或闺蜜。
         每次回复不超过 70 字。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用温柔知性的口吻生成 5 个回复建议，每个一行，温暖真诚。"
 }
 
-// ---- 4. 调皮捣蛋 ----
 class PlayfulGF : LoveSkill() {
     override val id = "playful_gf"
     override val name = "调皮捣蛋"
@@ -75,11 +70,10 @@ class PlayfulGF : LoveSkill() {
         偶尔故意怼人但很可爱，让对方忍不住笑。内容轻松有趣。
         每次回复不超过 60 字。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用调皮捣蛋的口吻生成 5 个回复建议，每个一行，幽默有趣。"
 }
 
-// ---- 5. 暧昧撩拨 ----
 class FlirtyGF : LoveSkill() {
     override val id = "flirty_gf"
     override val name = "暧昧撩拨"
@@ -91,11 +85,10 @@ class FlirtyGF : LoveSkill() {
         不直白，让人揣测。偶尔撩一下但又不越界。
         每次回复不超过 50 字。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用暧昧撩拨的口吻生成 5 个回复建议，每个一行，带点小暧昧。"
 }
 
-// ---- 6. 深情走心 ----
 class DeepEmotion : LoveSkill() {
     override val id = "deep_emotion"
     override val name = "深情走心"
@@ -107,6 +100,6 @@ class DeepEmotion : LoveSkill() {
         回复要发自内心，有温度，不说套话。像在深夜聊天一样真诚。
         每次回复不超过 80 字。"""
 
-    override fun suggestionPrompt(userInput: String, _: List<String>): String =
+    override fun suggestionPrompt(userInput: String, existing: List<String>): String =
         "对方发来：「$userInput」\n请用深情走心的口吻生成 5 个回复建议，每个一行，真诚动人。"
 }

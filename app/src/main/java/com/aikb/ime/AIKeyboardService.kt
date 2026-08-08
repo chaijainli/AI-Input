@@ -3,6 +3,7 @@ package com.aikb.ime
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.text.SpannableString
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -23,7 +24,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     private var aiRunnable: Runnable? = null
     private val DEBOUNCE_MS = 500L
 
-    // 修复：请求序号，防止旧请求覆盖新结果
     @Volatile private var currentRequestId = 0
 
     private val letterKeys = listOf("q","w","e","r","t","y","u","i","o","p",
@@ -64,9 +64,14 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         return view
     }
 
+    private fun commitText(text: String) {
+        val ic = currentInputConnection ?: return
+        ic.commitText(SpannableString(text), 1)
+    }
+
     private fun toggleCaps() {
         isCaps = !isCaps
-        val shiftBtn = view?.findViewById<Button>(R.id.key_shift) ?: return
+        val shiftBtn = currentInputView?.findViewById<Button>(R.id.key_shift) ?: return
         shiftBtn.isEnabled = true
         shiftBtn.backgroundTintList = if (isCaps) {
             android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2563EB"))
@@ -102,13 +107,10 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         val text = ic?.getTextBeforeCursor(80, 0)?.toString() ?: return
         if (text.isBlank()) return
 
-        // 给当前请求分配唯一序号
         val requestId = ++currentRequestId
-
         val prompt = skill.suggestionPrompt(text, emptyList())
         AIClient.generate(skill.systemPrompt(), prompt) { result ->
             handler.post {
-                // 只接受最新请求的结果，丢弃旧的
                 if (requestId == currentRequestId) {
                     parseSuggestions(result)?.let { candidateStrip.setSuggestions(it) }
                 }
@@ -117,7 +119,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     }
 
     private fun parseSuggestions(raw: String): List<String>? {
-        // 过滤 AI 错误信息
         if (raw.startsWith("[") || raw.contains("网络错误") || raw.contains("API错误") || raw.contains("请先在设置")) {
             return null
         }
