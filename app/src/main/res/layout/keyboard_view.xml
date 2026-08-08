@@ -50,7 +50,7 @@
             android:orientation="horizontal" android:weightSum="12" android:paddingTop="2dp"
             android:paddingStart="5dp" android:paddingEnd="5dp">
             <Button android:id="@+id/key_shift" style="@style/KeyStyle"
-                android:layout_weight="2" android:text="⇧" />
+                android:layout_weight="2" android:text="⇧" android:textSize="14sp" />
             <Button android:id="@+id/key_z" style="@style/KeyStyle" android:layout_weight="1" android:text="Z" />
             <Button android:id="@+id/key_x" style="@style/KeyStyle" android:layout_weight="1" android:text="X" />
             <Button android:id="@+id/key_c" style="@style/KeyStyle" android:layout_weight="1" android:text="C" />

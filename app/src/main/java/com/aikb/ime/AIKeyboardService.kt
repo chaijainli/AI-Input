@@ -60,7 +60,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             val view = layoutInflater.inflate(R.layout.keyboard_view, null)
             inputView = view
 
-            candidateStrip = view.findViewById(R.id.candidate_strip) as CandidateStrip
+            val stripView = view.findViewById<View>(R.id.candidate_strip)
+            candidateStrip = stripView as? CandidateStrip
+                ?: throw ClassCastException("candidate_strip 不是 CandidateStrip 类型，实际: ${stripView?.javaClass.name}")
             candidateStrip.setSuggestionsCallback { pos ->
                 candidateStrip.getSuggestion(pos)?.let { commitText(it) }
             }
@@ -90,12 +92,11 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             view
         } catch (e: Exception) {
             Log.e("AIKeyboard", "onCreateInputView 异常", e)
-            // 兜底：返回一个高亮可见的调试视图，确保服务至少能弹出
-            createFallbackView()
+            createFallbackView(e)
         }
     }
 
-    private fun createFallbackView(): View {
+    private fun createFallbackView(e: Exception): View {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF22C55E.toInt())
@@ -106,11 +107,20 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             LinearLayout.LayoutParams.WRAP_CONTENT
         )
         layout.addView(TextView(this).apply {
-            text = "⚠️ 键盘加载失败 (见 Logcat)"
-            textSize = 18f
+            text = "键盘加载失败\n错误: ${e.javaClass.simpleName}: ${e.message}"
+            textSize = 16f
             setTextColor(0xFFFFFFFF.toInt())
             gravity = android.view.Gravity.CENTER
-            setPadding(32, 48, 32, 48)
+            setPadding(24, 16, 24, 8)
+        }, params)
+        val stackLines = e.stackTrace.take(10).joinToString("\n") { it.toString() }
+        layout.addView(TextView(this).apply {
+            text = stackLines
+            textSize = 10f
+            setTextColor(0xFF000000.toInt())
+            gravity = android.view.Gravity.START
+            setPadding(24, 0, 24, 16)
+            maxLines = 15
         }, params)
         return layout
     }
