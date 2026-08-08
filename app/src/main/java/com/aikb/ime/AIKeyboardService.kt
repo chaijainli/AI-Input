@@ -144,7 +144,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         val rowHeight = dp2px(rowHeightDp)
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            height = rowHeight
             setPadding(hPadding, 0, hPadding, 0)
         }
         keys.forEach { kd ->
