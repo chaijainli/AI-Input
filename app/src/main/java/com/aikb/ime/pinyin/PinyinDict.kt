@@ -548,7 +548,7 @@ object PinyinDict {
 
         for (i in 0 until n) {
             if (dp[i].isEmpty()) continue
-            for (j in i + 2..min(i + 6, n)) {
+            for (j in i + 2..minOf(i + 6, n)) {
                 val seg = pinyin.substring(i, j)
                 if (dict.containsKey(seg)) {
                     for (path in dp[i]) {
