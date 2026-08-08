@@ -25,7 +25,9 @@ class CandidateStrip : View {
     private var drawableBg1: GradientDrawable? = null
 
     constructor(ctx: Context) : super(ctx) { init() }
-    constructor(ctx: Context, attrs: AttributeSet?) : super(ctx, attrs, 0) { init() }
+    constructor(ctx: Context, attrs: AttributeSet?) : super(ctx, attrs) { init() }
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(ctx, attrs, defStyleAttr) { init() }
+    constructor(ctx: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) : super(ctx, attrs, defStyleAttr, defStyleRes) { init() }
 
     fun setSuggestionsCallback(cb: (Int) -> Unit) { callback = cb }
     fun getSuggestion(pos: Int): String? = items.getOrNull(pos)
