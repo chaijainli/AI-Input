@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_dark">#0F172A</color>
+    <color name="key_bg">#1E293B</color>
+    <color name="key_pressed">#334155</color>
+    <color name="text_primary">#F1F5F9</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="accent_green">#22C55E</color>
+    <color name="accent_blue">#3B82F6</color>
+    <color name="accent_pink">#EC4899</color>
+    <color name="candidate_bg">#1D4ED8</color>
+    <color name="candidate_sel">#1D4ED8</color>
+    <color name="divider">#1E293B</color>
+</resources>
