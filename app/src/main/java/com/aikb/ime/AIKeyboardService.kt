@@ -21,6 +21,18 @@ import com.aikb.ime.util.Preferences
 
 class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
+    companion object {
+        private val BG_ROOT = 0xFF22C55E.toInt()
+        private val BG_KEY = 0xFF1E3A5F.toInt()
+        private val BG_CAPS_ON = 0xFF2563EB.toInt()
+        private val BG_SEND = 0xFF16A34A.toInt()
+        private val C_WHITE = 0xFFFFFFFF.toInt()
+        private val C_DEL = 0xFFF87171.toInt()
+        private val C_SPACE = 0xFF94A3B8.toInt()
+        private val C_SET = 0xFFFBBF24.toInt()
+        private val C_FALLBACK_TEXT = 0xFF000000.toInt()
+    }
+
     private var candidateStrip: CandidateStrip? = null
     private var inputView: View? = null
     private var capsButton: Button? = null
@@ -38,7 +50,6 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d("AIKeyboard", "onCreate: service starting")
         try {
             Preferences.init(this)
         } catch (e: Exception) {
@@ -46,14 +57,12 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         }
     }
 
-    override fun onStartInput(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
+    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
-        Log.d("AIKeyboard", "onStartInput: keyboard should appear")
     }
 
-    override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        Log.d("AIKeyboard", "onStartInputView: view should be visible")
     }
 
     override fun onCreateInputView(): View {
@@ -62,11 +71,10 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
             val root = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(0xFF22C55E.toInt())
+                setBackgroundColor(BG_ROOT)
                 setPadding(0, 0, 0, dp2px(4))
             }
 
-            // Candidate strip
             val strip = CandidateStrip(this)
             root.addView(strip, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp2px(36), 0f
@@ -76,64 +84,61 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 candidateStrip?.getSuggestion(pos)?.let { commitText(it) }
             }
 
-            // Keyboard rows
             val keyboardContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             root.addView(keyboardContainer, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             ))
 
             keyboardContainer.addView(buildRow(44, 0, listOf(
-                key("Q"), key("W"), key("E"), key("R"), key("T"), key("Y"),
-                key("U"), key("I"), key("O"), key("P")
+                k("Q"), k("W"), k("E"), k("R"), k("T"), k("Y"),
+                k("U"), k("I"), k("O"), k("P")
             )))
 
             keyboardContainer.addView(buildRow(44, dp2px(4), listOf(
-                key("A"), key("S"), key("D"), key("F"), key("G"), key("H"),
-                key("J"), key("K"), key("L")
+                k("A"), k("S"), k("D"), k("F"), k("G"), k("H"),
+                k("J"), k("K"), k("L")
             )))
 
-            keyboardContainer.addView(buildRow(44, dp2px(4), listOf(
-                key("CAPS", weight = 2f, size = 12f),
-                key("Z"), key("X"), key("C"), key("V"), key("B"),
-                key("N"), key("M"),
-                key("DEL", weight = 2f, size = 14f, color = 0xFFF87171)
-            ))).let { row ->
-                capsButton = row.getChildAt(0) as? Button
-            }
+            val row3 = buildRow(44, dp2px(4), listOf(
+                k("CAPS", 2f, 12f),
+                k("Z"), k("X"), k("C"), k("V"), k("B"),
+                k("N"), k("M"),
+                k("DEL", 2f, 14f, C_DEL)
+            ))
+            keyboardContainer.addView(row3)
+            capsButton = row3.getChildAt(0) as? Button
 
             keyboardContainer.addView(buildRow(44, 0, listOf(
-                key("SPACE", weight = 1.5f, size = 12f, color = 0xFF94A3B8),
-                key("SEND", weight = 1f, size = 12f, color = 0xFFFFFFFF, bg = 0xFF16A34A),
-                key("Aa", weight = 1f, size = 14f),
-                key("SET", weight = 1f, size = 14f, color = 0xFFFBBF24)
+                k("SPACE", 1.5f, 12f, C_SPACE),
+                k("SEND", 1f, 12f, C_WHITE, BG_SEND),
+                k("Aa", 1f, 14f),
+                k("SET", 1f, 14f, C_SET)
             )))
 
-            // Attach click listeners
             attachListeners(keyboardContainer)
-
             inputView = root
-            Log.d("AIKeyboard", "onCreateInputView: success")
             root
         } catch (e: Exception) {
-            Log.e("AIKeyboard", "onCreateInputView 异常", e)
+            Log.e("AIKeyboard", "onCreateInputView error", e)
             createFallbackView(e)
         }
     }
 
-    // ============ 键盘构建辅助 ============
-
     data class KeyDef(
-        val text: String,
+        val label: String,
         val weight: Float = 1f,
-        val size: Float = 16f,
-        val color: Int = 0xFFFFFFFF,
-        val bg: Int = 0xFF1E3A5F
+        val textSize: Float = 16f,
+        val textColor: Int = C_WHITE,
+        val bgColor: Int = BG_KEY
     )
 
-    private fun key(
-        text: String, weight: Float = 1f, size: Float = 16f,
-        color: Int = 0xFFFFFFFF, bg: Int = 0xFF1E3A5F
-    ) = KeyDef(text, weight, size, color, bg)
+    private fun k(
+        label: String,
+        weight: Float = 1f,
+        size: Float = 16f,
+        color: Int = C_WHITE,
+        bg: Int = BG_KEY
+    ): KeyDef = KeyDef(label, weight, size, color, bg)
 
     private fun buildRow(rowHeightDp: Int, hPadding: Int, keys: List<KeyDef>): LinearLayout {
         val rowHeight = dp2px(rowHeightDp)
@@ -142,20 +147,20 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
             height = rowHeight
             setPadding(hPadding, 0, hPadding, 0)
         }
-        for (kd in keys) {
-            val btn = Button(this).apply {
-                text = kd.text
-                textSize = kd.size
-                setTextColor(kd.color)
+        keys.forEach { kd ->
+            val button = Button(this).apply {
+                text = kd.label
+                textSize = kd.textSize
+                setTextColor(kd.textColor)
                 gravity = Gravity.CENTER
                 setPadding(0, 0, 0, 0)
                 minimumHeight = 0
                 minimumWidth = 0
-                setBackgroundColor(kd.bg)
+                setBackgroundColor(kd.bgColor)
             }
-            val params = LinearLayout.LayoutParams(0, rowHeight, kd.weight)
+            val params = LinearLayout.LayoutParams(0, dp2px(rowHeightDp), kd.weight)
             params.setMargins(1, 1, 1, 1)
-            row.addView(btn, params)
+            row.addView(button, params)
         }
         return row
     }
@@ -164,9 +169,9 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         for (c in 0 until container.childCount) {
             val row = container.getChildAt(c) as LinearLayout
             for (i in 0 until row.childCount) {
-                val btn = row.getChildAt(i) as Button
-                val label = btn.text.toString()
-                btn.setOnClickListener {
+                val button = row.getChildAt(i) as Button
+                val label = button.text.toString()
+                button.setOnClickListener {
                     when (label) {
                         "CAPS" -> toggleCaps()
                         "DEL" -> { deleteLastChar() }
@@ -190,12 +195,10 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
 
     private fun dp2px(dp: Int): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
 
-    // ============ 键盘操作 ============
-
     private fun createFallbackView(e: Exception): View {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF22C55E.toInt())
+            setBackgroundColor(BG_ROOT)
             minimumHeight = 220
         }
         val params = LinearLayout.LayoutParams(
@@ -205,7 +208,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         layout.addView(TextView(this).apply {
             text = "键盘加载失败\n错误: ${e.javaClass.simpleName}: ${e.message}"
             textSize = 16f
-            setTextColor(0xFFFFFFFF.toInt())
+            setTextColor(C_WHITE)
             gravity = Gravity.CENTER
             setPadding(24, 16, 24, 8)
         }, params)
@@ -213,7 +216,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
         layout.addView(TextView(this).apply {
             text = stackLines
             textSize = 10f
-            setTextColor(0xFF000000.toInt())
+            setTextColor(C_FALLBACK_TEXT)
             gravity = Gravity.START
             setPadding(24, 0, 24, 16)
             maxLines = 15
@@ -232,14 +235,8 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
     private fun toggleCaps() {
         isCaps = !isCaps
         val btn = capsButton ?: return
-        if (isCaps) {
-            btn.setBackgroundColor(0xFF2563EB.toInt())
-            btn.setTextColor(0xFFFFFFFF.toInt())
-        } else {
-            btn.setBackgroundColor(0xFF1E3A5F.toInt())
-            btn.setTextColor(0xFFFFFFFF.toInt())
-        }
-        Log.d("AIKeyboard", "toggleCaps: isCaps=$isCaps")
+        btn.setBackgroundColor(if (isCaps) BG_CAPS_ON else BG_KEY)
+        btn.setTextColor(C_WHITE)
     }
 
     private fun deleteLastChar() {
