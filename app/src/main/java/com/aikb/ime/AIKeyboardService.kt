@@ -11,7 +11,7 @@ import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.EditorInfo
+import android.view.inputmethod.EditorInfo
 import android.widget.PopupWindow
 import android.widget.Button
 import android.widget.LinearLayout
@@ -333,7 +333,7 @@ class AIKeyboardService : android.inputmethodservice.InputMethodService() {
                 minimumHeight = 0
                 minimumWidth = 0
                 setPadding(dp2px(12), dp2px(8), dp2px(12), dp2px(8))
-                onClick {
+                setOnClickListener {
                     commitText(ch)
                     dismissPopups()
                 }
