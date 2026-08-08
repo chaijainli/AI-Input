@@ -9,8 +9,9 @@ import android.os.Vibrator
 import android.text.SpannableString
 import android.util.Log
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
-import android.view.inputmethod.EditorInfo
+import android.view.EditorInfo
 import android.widget.PopupWindow
 import android.widget.Button
 import android.widget.LinearLayout
